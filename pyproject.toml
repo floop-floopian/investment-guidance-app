@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "investment-guidance-app"
+version = "0.1.0"
+description = "Single-user investment guidance pipeline with macro sentiment analysis and barbell strategy allocation"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.40.0",
+    "praw>=7.8.0",
+    "feedparser>=6.0.11",
+    "finnhub-python>=2.4.20",
+    "alpha-vantage>=3.0.0",
+    "python-telegram-bot>=21.0",
+    "apscheduler>=3.10.4",
+    "supabase>=2.10.0",
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+]
+
+[project.scripts]
+investment-guidance = "src.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.14.0",
+]
