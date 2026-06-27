@@ -1,50 +1,72 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+SYNC IMPACT REPORT
+==================
+Version change: [TEMPLATE] → 1.0.0
+Modified principles: All (new project, template → concrete)
+Added sections: Tech Stack, Quality Gates
+Removed sections: None
+Templates updated:
+  ✅ .specify/memory/constitution.md (this file)
+  ✅ .specify/templates/plan-template.md (Constitution Check gates updated)
+  ✅ .specify/templates/spec-template.md (no changes needed — generic enough)
+  ✅ .specify/templates/tasks-template.md (no changes needed — structure fits)
+Follow-up TODOs: None
+-->
+
+# Investment Guidance App Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Spec-Driven Development
+Every feature MUST begin with an approved spec. No implementation starts without a completed
+Spec → Plan → Tasks sequence. Deviating from this sequence requires explicit owner approval.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Adapter Pattern for External Dependencies
+All external data sources (Finnhub, Alpha Vantage, Reddit API, RSS, Telegram Bot API) MUST
+be accessed through abstract provider interfaces. Swapping a provider MUST require zero
+changes outside the adapter layer — configuration only.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Test-First (NON-NEGOTIABLE)
+TDD is mandatory. Tests MUST be written before implementation code. Tests MUST fail before
+implementation begins. Red-Green-Refactor cycle MUST be enforced on every task.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Phase Discipline
+Phase 1 is personal use only. Multi-user logic, authentication flows, and SaaS features
+MUST NOT be implemented until Phase 1 is complete and in production use by the owner.
+No premature SaaS scaffolding.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Simplicity Over Cleverness
+The simplest solution that satisfies the requirement MUST be chosen. Complexity MUST be
+justified by a real, present requirement. YAGNI applies at all times.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### VI. Idempotent State Log
+All critical system actions (BUY / SELL / HOLD recommendations) MUST be written to the
+local state log before any external notification is sent. The state log is the source of
+truth. Telegram (or any notification layer) is delivery-only and non-blocking.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+## Tech Stack
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+- **Backend**: FastAPI (Python)
+- **LLM Orchestration**: LangChain
+- **Database**: Supabase (Postgres + Auth)
+- **Scheduler**: APScheduler
+- **Data Sources**: Finnhub + Alpha Vantage (adapter-wrapped, swappable)
+- **Sentiment Sources**: Reddit API + RSS feeds (adapter-wrapped, swappable)
+- **Notifications**: Telegram Bot API
+- **Frontend**: React
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+## Quality Gates
+
+- No feature branch merges without passing tests
+- All PRs MUST include rationale for architectural decisions
+- Data provider swaps MUST require zero changes outside the adapter layer
+- Constitution Check in plan.md MUST be completed before Phase 0 research begins
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes all other practices and documentation. Amendments require
+explicit approval from the project owner before implementation. All PRs and reviews
+MUST verify compliance with active principles. Complexity that violates Principle V
+MUST be documented in the Complexity Tracking table of the implementation plan.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-06-03 | **Last Amended**: 2026-06-03

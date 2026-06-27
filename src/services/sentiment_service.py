@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import Any
-import anthropic
+from groq import Groq
 from src.models.macro_signal import MacroSignal, SentimentLabel
 from src.config.settings import get_settings
 
@@ -19,24 +19,23 @@ _SYSTEM_PROMPT = (
 
 class SentimentService:
     def __init__(self) -> None:
-        self._client = anthropic.Anthropic(api_key=get_settings().anthropic_api_key)
+        settings = get_settings()
+        self._client = Groq(api_key=settings.groq_api_key)
+        self._model = settings.groq_model
 
-    async def _call_claude(self, user_content: str) -> dict[str, Any]:
+    async def _call_llm(self, user_content: str) -> dict[str, Any]:
         import asyncio
         response = await asyncio.to_thread(
-            self._client.messages.create,
-            model="claude-sonnet-4-6",
+            self._client.chat.completions.create,
+            model=self._model,
             max_tokens=2048,
-            system=[
-                {
-                    "type": "text",
-                    "text": _SYSTEM_PROMPT,
-                    "cache_control": {"type": "ephemeral"},
-                }
+            messages=[
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
             ],
-            messages=[{"role": "user", "content": user_content}],
+            response_format={"type": "json_object"},
         )
-        raw = response.content[0].text
+        raw = response.choices[0].message.content
         return json.loads(raw)
 
     async def score_signals(self, signals: list[MacroSignal]) -> tuple[list[MacroSignal], float]:
@@ -50,7 +49,7 @@ class SentimentService:
         user_content = f"Score these {len(signals)} macro signals:\n\n{items_text}"
 
         try:
-            result = await self._call_claude(user_content)
+            result = await self._call_llm(user_content)
         except Exception as e:
             logger.error("Sentiment scoring failed: %s", e)
             return signals, 0.0

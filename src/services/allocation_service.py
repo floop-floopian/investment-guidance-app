@@ -1,7 +1,8 @@
 import asyncio
+import json
 import logging
 from typing import Any
-import anthropic
+from groq import Groq
 from src.models.stock import Stock, BarbellClass
 from src.models.allocation import Allocation, AllocationBand
 from src.config.settings import get_settings
@@ -12,12 +13,13 @@ logger = logging.getLogger(__name__)
 class AllocationService:
     def __init__(self) -> None:
         self._settings = get_settings()
-        self._client = anthropic.Anthropic(api_key=self._settings.anthropic_api_key)
+        self._client = Groq(api_key=self._settings.groq_api_key)
+        self._model = self._settings.groq_model
 
-    async def _call_claude_rationale(
+    async def _call_llm_rationale(
         self, allocations: list[Allocation], stocks: list[Stock], capital: float
     ) -> tuple[str, str]:
-        """Returns (per_position_rationale_json_str, overall_rationale)."""
+        """Returns (per_position_rationale_dict, overall_rationale)."""
         alloc_summary = "\n".join(
             f"- {a.ticker}: ${a.amount_usd:.0f} ({a.percentage:.1f}%, {a.band.value})"
             for a in allocations
@@ -28,13 +30,13 @@ class AllocationService:
             'Return JSON: {"positions": {"TICKER": "rationale"}, "overall": "rationale"}'
         )
         response = await asyncio.to_thread(
-            self._client.messages.create,
-            model="claude-sonnet-4-6",
+            self._client.chat.completions.create,
+            model=self._model,
             max_tokens=1024,
             messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
         )
-        import json
-        raw = json.loads(response.content[0].text)
+        raw = json.loads(response.choices[0].message.content)
         positions = raw.get("positions", {})
         overall = raw.get("overall", "")
         return positions, overall
@@ -93,7 +95,7 @@ class AllocationService:
 
         # Enrich with LLM rationale
         try:
-            positions_rationale, overall_rationale = await self._call_claude_rationale(
+            positions_rationale, overall_rationale = await self._call_llm_rationale(
                 all_allocations, stocks, capital
             )
             enriched: list[Allocation] = []

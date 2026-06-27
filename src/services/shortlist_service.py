@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from typing import Any
-import anthropic
+from groq import Groq
 from src.models.stock import Stock, BarbellClass
 from src.config.settings import get_settings
 
@@ -44,9 +44,11 @@ def _compute_risk_reward(stock: Stock, macro_aggregate: float) -> float:
 
 class ShortlistService:
     def __init__(self) -> None:
-        self._client = anthropic.Anthropic(api_key=get_settings().anthropic_api_key)
+        settings = get_settings()
+        self._client = Groq(api_key=settings.groq_api_key)
+        self._model = settings.groq_model
 
-    async def _call_claude_reasoning(self, stock: Stock, macro_aggregate: float) -> str:
+    async def _call_llm_reasoning(self, stock: Stock, macro_aggregate: float) -> str:
         prompt = (
             f"Provide a 2-3 sentence investment reasoning for {stock.ticker} ({stock.company_name}).\n"
             f"Barbell class: {stock.barbell_class.value}. Risk-reward score: {stock.risk_reward_score:.2f}.\n"
@@ -55,12 +57,12 @@ class ShortlistService:
             "Be concise and specific. No disclaimers."
         )
         response = await asyncio.to_thread(
-            self._client.messages.create,
-            model="claude-sonnet-4-6",
+            self._client.chat.completions.create,
+            model=self._model,
             max_tokens=256,
             messages=[{"role": "user", "content": prompt}],
         )
-        return response.content[0].text.strip()
+        return response.choices[0].message.content.strip()
 
     async def build_shortlist(
         self, stocks: list[Stock], macro_aggregate: float
@@ -78,7 +80,7 @@ class ShortlistService:
         # Generate reasoning concurrently
         async def enrich(stock: Stock) -> Stock:
             try:
-                reasoning = await self._call_claude_reasoning(stock, macro_aggregate)
+                reasoning = await self._call_llm_reasoning(stock, macro_aggregate)
                 return stock.model_copy(update={"reasoning": reasoning})
             except Exception as e:
                 logger.warning("Reasoning generation failed for %s: %s", stock.ticker, e)

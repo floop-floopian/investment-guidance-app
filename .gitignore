@@ -38,3 +38,9 @@ state/
 
 # Supabase local
 .supabase/
+
+# Claude Code session data
+.claude/
+
+# Local non-project files
+Product Roadmap/
