@@ -1,35 +1,42 @@
 # Implementation Plan: Investment Guidance Pipeline
 
-**Branch**: `001-investment-guidance-pipeline` | **Date**: 2026-06-03 | **Spec**: [spec.md](spec.md)
+**Branch**: `001-investment-guidance-pipeline` | **Date**: 2026-06-03 | **Last updated**: 2026-06-30 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `specs/001-investment-guidance-pipeline/spec.md`
 
 ## Summary
 
-Build a single-user Python CLI + background service that ingests macro signals
-from Reddit (r/investing, r/stocks, r/economics) and RSS feeds, scores
-sentiment via Claude API, runs fundamental and technical analysis on a
-configured stock universe via Finnhub/Alpha Vantage, applies a barbell strategy
-classifier, generates an LLM-reasoned shortlist, allocates user capital with
-per-position rationale, logs all actions to local NDJSON + Supabase, and sends
-Telegram notifications for completed analysis and critical signal shifts.
+Single-user Python CLI + background service that ingests macro signals from RSS
+feeds (Yahoo Finance, CNBC, MarketWatch), scores sentiment via Groq LLM, extracts
+relevant stock tickers from those signals, runs fundamental and technical analysis
+via Finnhub + yfinance, applies a barbell strategy classifier, generates an
+LLM-reasoned shortlist, allocates user capital with per-position rationale, logs
+all actions to local NDJSON + Supabase, and sends Discord DM notifications for
+completed analysis and critical signal shifts.
+
+**Pipeline flow:**
+```
+RSS news → top 25 signals scored → tickers extracted from headlines
+→ stocks analysed (Finnhub fundamentals + yfinance technicals)
+→ barbell classified → shortlist → capital allocated → Discord DM
+```
 
 ## Technical Context
 
 **Language/Version**: Python 3.12
 
 **Primary Dependencies**:
-- `anthropic` — Claude API for sentiment scoring and reasoning generation
-- `praw` — Reddit API ingestion (PRAW OAuth2)
-- `feedparser` — RSS/Atom ingestion with conditional GET
-- `finnhub-python` — primary financial data (fundamentals, price)
-- `alpha-vantage` — secondary financial data (technical indicators, fallback)
-- `python-telegram-bot` — Telegram Bot API delivery
+- `groq` — Groq API (llama-3.3-70b) for sentiment scoring, ticker extraction, and reasoning generation
+- `feedparser` — RSS/Atom ingestion with conditional GET (etag caching via Supabase)
+- `finnhub-python` — primary financial data (fundamentals, price, analyst consensus)
+- `yfinance` — technical indicators (RSI-14, SMA-50, SMA-200, 90d momentum); no API key required
+- `aiohttp` — Discord Bot API delivery (DM via bot token)
+- `praw` — Reddit ingestion (present but skips when credentials absent; Phase 2: Reddit JSON API)
 - `apscheduler` — recurring monitor scheduler (AsyncIOScheduler)
 - `supabase` — Postgres state persistence
 - `typer` — CLI framework (built on Click)
-- `fastapi` + `uvicorn` — HTTP API layer (Phase 1 minimal, Phase 2 full)
-- `pydantic` — data validation and settings management
+- `fastapi` + `uvicorn` — HTTP API layer (Phase 2; not active in Phase 1)
+- `pydantic` + `pydantic-settings` — data validation and env-var settings management
 - `pytest` + `pytest-asyncio` — test suite
 
 **Storage**: Local NDJSON state file (append-only audit log) + Supabase Postgres
@@ -43,12 +50,13 @@ Telegram notifications for completed analysis and critical signal shifts.
 deferred to Phase 2 per constitution Principle IV
 
 **Performance Goals**:
-- On-demand pipeline: ≤5 min end-to-end (ingestion → Telegram delivery)
-- Recurring monitor alert: ≤60 s from signal detection to Telegram delivery
+- On-demand pipeline: ≤5 min end-to-end (ingestion → Discord delivery); observed ~25 s with 12 tickers
+- Recurring monitor alert: ≤60 s from signal detection to Discord delivery
 
 **Constraints**:
-- Finnhub free tier: 60 calls/min — requires queuing/backoff for ≤50 tickers
-- Reddit PRAW: 60 req/min — batch subreddit fetches
+- Finnhub free tier: 60 calls/min — token bucket rate limiter in adapter; 3 calls/ticker (quote, fundamentals, recommendation_trends)
+- Groq free tier: ~14,400 tokens/day — mitigated by capping sentiment to 25 signals; ~9,000 tokens/run
+- yfinance: no rate limit; 1-year daily history per ticker fetched in parallel
 - Single user; no auth or multi-tenancy in Phase 1
 - All secrets via environment variables (no config UI)
 
@@ -63,7 +71,7 @@ deferred to Phase 2 per constitution Principle IV
 - [x] Tests planned before any implementation task (Principle III — TDD)
 - [x] No SaaS/multi-user features included — Phase 1 is single-user CLI/service only (Principle IV)
 - [x] Complexity justified — minimal stack, no over-engineering (Principle V)
-- [x] State log write precedes Telegram notification in every design path (Principle VI)
+- [x] State log write precedes Discord notification in every design path (Principle VI)
 
 **Post-Phase 1 re-check**: All gates re-confirmed after design. Adapter interfaces
 defined in `contracts/adapters.md`. State log write is first action in every
@@ -90,48 +98,51 @@ specs/001-investment-guidance-pipeline/
 ```text
 src/
 ├── adapters/
-│   ├── base.py               # Abstract base classes for all providers
-│   ├── reddit_adapter.py     # PRAW-based Reddit ingestion
-│   ├── rss_adapter.py        # feedparser-based RSS ingestion
-│   ├── finnhub_adapter.py    # Finnhub financial data
-│   ├── alphavantage_adapter.py # Alpha Vantage financial data
-│   └── telegram_adapter.py   # Telegram Bot API delivery
+│   ├── base.py                  # Abstract base classes for all providers
+│   ├── reddit_adapter.py        # PRAW Reddit ingestion (skips when no credentials)
+│   ├── rss_adapter.py           # feedparser RSS ingestion with conditional GET
+│   ├── finnhub_adapter.py       # Finnhub: quote, fundamentals, analyst consensus
+│   ├── yfinance_adapter.py      # yfinance: RSI-14, SMA-50, SMA-200, 90d momentum
+│   ├── alphavantage_adapter.py  # Alpha Vantage (retained, not used as primary)
+│   ├── discord_adapter.py       # Discord Bot API delivery (DM via aiohttp)
+│   └── telegram_adapter.py      # Telegram (retained, superseded by Discord)
 ├── models/
-│   ├── macro_signal.py       # MacroSignal entity + Pydantic schema
-│   ├── stock.py              # Stock entity + barbell classification
-│   ├── allocation.py         # Allocation entity
-│   ├── pipeline_run.py       # PipelineRun entity
-│   └── state_log.py          # StateLogEntry entity
+│   ├── macro_signal.py          # MacroSignal entity + Pydantic schema
+│   ├── stock.py                 # Stock entity + barbell classification
+│   ├── allocation.py            # Allocation entity
+│   ├── pipeline_run.py          # PipelineRun entity (tracks discord_sent)
+│   └── state_log.py             # StateLogEntry entity + ActionType enum
 ├── services/
-│   ├── sentiment_service.py  # Claude API sentiment scoring
-│   ├── analysis_service.py   # Fundamental + technical analysis
-│   ├── barbell_service.py    # Barbell strategy classifier
-│   ├── shortlist_service.py  # Risk-reward scoring + LLM reasoning
-│   ├── allocation_service.py # Capital allocation + LLM rationale
-│   └── monitor_service.py    # Recurring news check scheduler
+│   ├── sentiment_service.py     # Groq LLM sentiment scoring (top 25 signals)
+│   ├── ticker_extraction_service.py  # Groq LLM ticker extraction from signals
+│   ├── analysis_service.py      # Fundamental + technical analysis orchestration
+│   ├── barbell_service.py       # Barbell classifier (>= 2 qualifiers per band)
+│   ├── shortlist_service.py     # Risk-reward scoring + Groq LLM reasoning
+│   ├── allocation_service.py    # Capital allocation (60/40) + Groq LLM rationale
+│   └── monitor_service.py       # Recurring news check scheduler
 ├── pipeline/
-│   ├── orchestrator.py       # End-to-end pipeline runner
-│   └── stages.py             # Named pipeline stages (ingestion, analysis, etc.)
+│   └── orchestrator.py          # 7-stage end-to-end pipeline runner
 ├── state/
-│   ├── log_writer.py         # NDJSON append-only local log
-│   └── supabase_store.py     # Supabase persistence layer
+│   ├── log_writer.py            # NDJSON append-only local log (~/.investment-guidance/)
+│   └── supabase_store.py        # Supabase persistence layer
 ├── config/
-│   └── settings.py           # Pydantic settings (env vars + config file)
-└── cli.py                    # Typer CLI entrypoint
+│   └── settings.py              # Pydantic settings (env vars)
+└── cli.py                       # Typer CLI entrypoint
 
 tests/
 ├── contract/
 │   ├── test_reddit_adapter.py
 │   ├── test_rss_adapter.py
 │   ├── test_finnhub_adapter.py
-│   ├── test_alphavantage_adapter.py
-│   └── test_telegram_adapter.py
+│   ├── test_yfinance_adapter.py
+│   └── test_discord_adapter.py
 ├── integration/
 │   ├── test_pipeline_end_to_end.py
 │   ├── test_monitor_cycle.py
 │   └── test_state_log.py
 └── unit/
     ├── test_sentiment_service.py
+    ├── test_ticker_extraction_service.py
     ├── test_barbell_service.py
     ├── test_allocation_service.py
     └── test_shortlist_service.py
