@@ -1,5 +1,9 @@
+import asyncio
+import hashlib
 import logging
+import time
 from datetime import datetime, timezone
+import feedparser
 from src.adapters.base import MacroSignalProvider
 from src.models.macro_signal import MacroSignal, SourceType
 from src.config.settings import get_settings
@@ -13,36 +17,38 @@ class RSSAdapter(MacroSignalProvider):
         self._feed_urls = get_settings().rss_feed_urls
 
     async def fetch_signals(self) -> list[MacroSignal]:
-        import feedparser
         signals: list[MacroSignal] = []
         now = datetime.now(timezone.utc)
 
         for url in self._feed_urls:
             try:
                 state = supabase_store.get_feed_state(url) or {}
-                kwargs: dict = {"url": url}
+                kwargs: dict = {}
                 if state.get("etag"):
                     kwargs["etag"] = state["etag"]
                 if state.get("last_modified"):
                     kwargs["modified"] = state["last_modified"]
 
-                feed = feedparser.parse(url, **{k: v for k, v in kwargs.items() if k != "url"})
-                # feedparser uses positional first arg
-                feed = feedparser.parse(url)
+                feed = await asyncio.to_thread(feedparser.parse, url, **kwargs)
 
-                etag = getattr(feed, "etag", None)
-                modified = getattr(feed, "modified", None)
-                supabase_store.upsert_feed_state(url, etag, modified)
+                supabase_store.upsert_feed_state(
+                    url,
+                    getattr(feed, "etag", None),
+                    getattr(feed, "modified", None),
+                )
 
                 for entry in feed.entries:
                     pub = None
                     if hasattr(entry, "published_parsed") and entry.published_parsed:
-                        import time
-                        pub = datetime.fromtimestamp(time.mktime(entry.published_parsed), tz=timezone.utc)
+                        pub = datetime.fromtimestamp(
+                            time.mktime(entry.published_parsed), tz=timezone.utc
+                        )
 
                     summary = getattr(entry, "summary", None) or getattr(entry, "description", None)
+                    entry_key = getattr(entry, "id", None) or getattr(entry, "link", None) or getattr(entry, "title", str(len(signals)))
+                    entry_hash = hashlib.md5(f"{url}:{entry_key}".encode()).hexdigest()[:16]
                     signals.append(MacroSignal(
-                        id=f"rss:{url}:{getattr(entry, 'id', entry.get('link', str(len(signals))))}",
+                        id=f"rss:{entry_hash}",
                         source_type=SourceType.RSS,
                         source_id=url,
                         title=getattr(entry, "title", ""),

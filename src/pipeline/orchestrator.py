@@ -3,9 +3,10 @@ from datetime import datetime, timezone
 from src.adapters.reddit_adapter import RedditAdapter
 from src.adapters.rss_adapter import RSSAdapter
 from src.adapters.finnhub_adapter import FinnhubAdapter
-from src.adapters.alphavantage_adapter import AlphaVantageAdapter
-from src.adapters.telegram_adapter import TelegramAdapter
+from src.adapters.yfinance_adapter import YFinanceAdapter
+from src.adapters.discord_adapter import DiscordAdapter
 from src.services.sentiment_service import SentimentService
+from src.services.ticker_extraction_service import TickerExtractionService
 from src.services.analysis_service import AnalysisService
 from src.services.barbell_service import BarbellService
 from src.services.shortlist_service import ShortlistService
@@ -42,19 +43,19 @@ class PipelineOrchestrator:
         except Exception:
             pass
 
-    def _format_telegram_message(self, run: PipelineRun, stocks, allocations, aggregate: float) -> str:
+    def _format_discord_message(self, run: PipelineRun, stocks, allocations, aggregate: float) -> str:
         lines = [
-            f"*Investment Guidance — Run {run.id[:8]}*",
+            f"**Investment Guidance — Run {run.id[:8]}**",
             f"Macro Sentiment: `{aggregate:+.2f}` ({run.macro_signal_count} signals)\n",
-            "*Shortlist:*",
+            "**Shortlist:**",
         ]
         for stock in stocks:
             lines.append(
-                f"• *{stock.ticker}* [{stock.barbell_class.value}] "
+                f"• **{stock.ticker}** [{stock.barbell_class.value}] "
                 f"Score: `{stock.risk_reward_score:.2f}`\n"
                 f"  {stock.reasoning or 'N/A'}"
             )
-        lines.append("\n*Capital Allocation:*")
+        lines.append("\n**Capital Allocation:**")
         total = 0.0
         for alloc in allocations:
             lines.append(
@@ -99,11 +100,18 @@ class PipelineOrchestrator:
             })
             supabase_store.upsert_macro_signals(scored_signals)
 
-            # Stage 3: Stock analysis
+            # Stage 3: Ticker extraction — signals drive the universe
+            extractor = TickerExtractionService()
+            tickers = await extractor.extract(scored_signals)
+            self._log(run.id, ActionType.TICKERS_EXTRACTED, {
+                "tickers": tickers,
+                "source": "signals" if scored_signals else "fallback",
+            })
+
+            # Stage 4: Stock analysis
             finnhub = FinnhubAdapter()
-            av = AlphaVantageAdapter()
-            analysis = AnalysisService(primary=finnhub, fallback=av)
-            tickers = self._settings.stock_tickers
+            yf = YFinanceAdapter()
+            analysis = AnalysisService(primary=finnhub, fallback=yf)
 
             def _log_error(action, level, payload):
                 self._log(run.id, action, payload, level)
@@ -115,7 +123,7 @@ class PipelineOrchestrator:
             })
             supabase_store.upsert_stocks(stocks)
 
-            # Stage 4: Barbell classification
+            # Stage 5: Barbell classification
             barbell = BarbellService()
             classified = barbell.classify_all(stocks, aggregate)
             shortlist_stocks = [s for s in classified if s.barbell_class.value != "EXCLUDED"]
@@ -127,11 +135,11 @@ class PipelineOrchestrator:
             })
             supabase_store.upsert_stocks(classified)
 
-            # Stage 5: Shortlist with reasoning
+            # Stage 6: Shortlist with reasoning
             shortlist_svc = ShortlistService()
             shortlist = await shortlist_svc.build_shortlist(classified, aggregate)
 
-            # Stage 6: Capital allocation — log BEFORE Telegram (Principle VI)
+            # Stage 7: Capital allocation — log BEFORE Discord (Principle VI)
             alloc_svc = AllocationService()
             allocations = await alloc_svc.allocate(shortlist, capital, run.id)
             run = run.model_copy(update={"allocation_count": len(allocations)})
@@ -144,16 +152,16 @@ class PipelineOrchestrator:
             })
             supabase_store.upsert_allocations(allocations)
 
-            # Stage 7: Telegram notification (AFTER state log — Principle VI)
-            telegram = TelegramAdapter()
-            message = self._format_telegram_message(run, shortlist, allocations, aggregate)
-            sent = await telegram.send_message(message)
+            # Stage 7: Discord notification (AFTER state log — Principle VI)
+            discord = DiscordAdapter()
+            message = self._format_discord_message(run, shortlist, allocations, aggregate)
+            sent = await discord.send_message(message)
 
             if sent:
-                run = run.model_copy(update={"telegram_sent": True})
-                self._log(run.id, ActionType.TELEGRAM_SENT, {"message_length": len(message)})
+                run = run.model_copy(update={"discord_sent": True})
+                self._log(run.id, ActionType.DISCORD_SENT, {"message_length": len(message)})
             else:
-                self._log(run.id, ActionType.TELEGRAM_FAILED, {}, LogLevel.ERROR)
+                self._log(run.id, ActionType.DISCORD_FAILED, {}, LogLevel.ERROR)
 
             run = run.model_copy(update={
                 "status": RunStatus.COMPLETED,

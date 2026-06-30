@@ -34,7 +34,7 @@ Thumbs.db
 
 # State log (user data, not committed)
 *.ndjson
-state/
+/state/
 
 # Supabase local
 .supabase/

@@ -60,7 +60,34 @@ class FinnhubAdapter(FinancialDataProvider):
         try:
             profile = await asyncio.to_thread(self._call, self._client.company_basic_financials, ticker, "all")
             metrics = profile.get("metric", {})
-            company = await asyncio.to_thread(self._call, self._client.company_profile2, **{"symbol": ticker})
+            company = await asyncio.to_thread(lambda: self._client.company_profile2(symbol=ticker))
+
+            # Analyst consensus: Finnhub recommendation trends, latest period
+            # Mapped to 1–5 scale: 1=strong sell, 3=hold, 5=strong buy
+            analyst_consensus = None
+            try:
+                trends = await asyncio.to_thread(self._call, self._client.recommendation_trends, ticker)
+                if trends:
+                    latest = trends[0]
+                    total = sum([
+                        latest.get("strongBuy", 0),
+                        latest.get("buy", 0),
+                        latest.get("hold", 0),
+                        latest.get("sell", 0),
+                        latest.get("strongSell", 0),
+                    ])
+                    if total > 0:
+                        weighted = (
+                            latest.get("strongBuy", 0) * 5 +
+                            latest.get("buy", 0) * 4 +
+                            latest.get("hold", 0) * 3 +
+                            latest.get("sell", 0) * 2 +
+                            latest.get("strongSell", 0) * 1
+                        )
+                        analyst_consensus = round(weighted / total, 2)
+            except Exception:
+                pass
+
             return {
                 "pe_ratio": metrics.get("peBasicExclExtraTTM"),
                 "market_cap": company.get("marketCapitalization", 0) * 1_000_000 if company else None,
@@ -68,7 +95,7 @@ class FinnhubAdapter(FinancialDataProvider):
                 "beta": metrics.get("beta"),
                 "revenue_growth_yoy": metrics.get("revenueGrowthTTMYoy"),
                 "debt_to_equity": metrics.get("totalDebt/totalEquityAnnual"),
-                "analyst_consensus": None,
+                "analyst_consensus": analyst_consensus,
                 "company_name": company.get("name") if company else None,
             }
         except Exception as e:

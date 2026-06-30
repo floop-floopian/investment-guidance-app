@@ -11,7 +11,6 @@ class Settings(BaseSettings):
 
     # Financial data
     finnhub_api_key: str
-    alpha_vantage_api_key: str
 
     # Reddit
     reddit_client_id: str
@@ -20,9 +19,8 @@ class Settings(BaseSettings):
     reddit_subreddits: list[str] = ["investing", "stocks", "economics"]
     reddit_hot_post_limit: int = 25
 
-    # Telegram
-    telegram_bot_token: str
-    telegram_chat_id: str
+    # Discord
+    discord_bot_token: str
 
     # Supabase
     supabase_url: str
@@ -41,7 +39,7 @@ class Settings(BaseSettings):
     barbell_safe_dividend_yield_min: float = 1.5
     barbell_safe_market_cap_min: float = 10_000_000_000.0  # $10B
     barbell_satellite_beta_min: float = 1.2
-    barbell_satellite_momentum_min: float = 15.0
+    barbell_satellite_momentum_min: float = 5.0
     barbell_satellite_rsi_min: float = 40.0
     barbell_satellite_rsi_max: float = 70.0
     barbell_satellite_analyst_min: float = 4.0

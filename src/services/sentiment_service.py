@@ -42,11 +42,19 @@ class SentimentService:
         if not signals:
             return [], 0.0
 
+        # Use the 25 most recent signals — freshest news has highest signal value
+        # and keeps token usage predictable within Groq free tier limits
+        candidates = sorted(
+            [s for s in signals if s.published_at],
+            key=lambda s: s.published_at,
+            reverse=True,
+        )[:25] or signals[:25]
+
         items_text = "\n".join(
             f'[{s.id}] {s.title}' + (f' — {s.summary[:200]}' if s.summary else '')
-            for s in signals
+            for s in candidates
         )
-        user_content = f"Score these {len(signals)} macro signals:\n\n{items_text}"
+        user_content = f"Score these {len(candidates)} macro signals:\n\n{items_text}"
 
         try:
             result = await self._call_llm(user_content)
@@ -64,7 +72,7 @@ class SentimentService:
         }
 
         updated: list[MacroSignal] = []
-        for signal in signals:
+        for signal in candidates:
             item_data = score_map.get(signal.id, {})
             score = float(item_data.get("score", 0.0))
             score = max(-1.0, min(1.0, score))

@@ -26,7 +26,7 @@ class PipelineRun(BaseModel):
     macro_signal_count: int = 0
     shortlist_count: int = 0
     allocation_count: int = 0
-    telegram_sent: bool = False
+    discord_sent: bool = False
     error_message: str | None = None
 
     def model_post_init(self, __context: object) -> None:

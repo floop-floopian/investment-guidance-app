@@ -145,3 +145,52 @@ import.
 ## Complexity Tracking
 
 > No Constitution Check violations — no entries required.
+
+---
+
+## Phase 1 Stabilisation — 2026-06-30
+
+Post-implementation bug fixes and real-data integration. Pipeline is now end-to-end
+functional with live data sources. Changes committed as `fix: stabilise pipeline`.
+
+### Data Sources
+
+| Component | Before | After |
+|---|---|---|
+| Technical indicators | Alpha Vantage (25 req/day free tier — always rate-limited) | `yfinance` — no API key, no rate limit, 1-year daily history |
+| Macro signals | Reddit PRAW OAuth (credentials unavailable — 401 on every call) | RSS feeds: Yahoo Finance, CNBC, MarketWatch |
+| Reddit adapter | Crashed with 401 on every run | Silently skips when credentials absent |
+
+### New: Signal-Driven Ticker Universe
+
+Added `TickerExtractionService` between sentiment scoring (Stage 2) and stock
+analysis (Stage 3). The LLM now extracts ticker symbols from the scored news
+headlines; those tickers drive the analysis universe. The configured `STOCK_TICKERS`
+list in `.env` acts as fallback/supplement only (capped at 15 total).
+
+**Pipeline flow after this change:**
+```
+RSS news → top 25 signals scored → tickers extracted → those stocks analysed
+→ barbell classified → shortlist → allocation → Discord
+```
+
+### Bug Fixes
+
+| Bug | Root Cause | Fix |
+|---|---|---|
+| Sentiment always `0.00` | 88 signals × response tokens exceeded `max_tokens=2048`, JSON truncated, silent fallback to 0 | Cap to 25 most-recent signals before scoring |
+| Barbell classifier too loose | `safe_qualifiers >= 1` — large-cap alone qualified anything as SAFE_CORE | Raised to `>= 2` qualifiers required |
+| Satellite momentum threshold | `15.0` was intended as % per year but applied to 90-day window (= 60% annualised) | Corrected to `5.0` (≈ 20% annualised — above-market threshold) |
+| Analyst consensus always `None` | Finnhub adapter hardcoded `analyst_consensus: None` | Implemented via `recommendation_trends` API; weighted 1–5 scale |
+| Supabase duplicate upsert error | `upsert()` without `on_conflict` tried to resolve on all unique constraints; cross-feed articles caused ambiguity | Explicit `on_conflict="id"` + dedup guard before batch |
+| RSS adapter double-parse | `feedparser.parse()` called twice; second call overwrote conditional GET result | Single call with kwargs; conditional GET preserved |
+| State log written to wrong path | `~` in `STATE_LOG_PATH` env var not expanded by Pydantic; log written inside project dir | Added `.expanduser()` in `log_writer.py` |
+| RSS signal ID collisions | Fallback used `entry.get('link', str(len(signals)))` — relative IDs collide across feeds | `hashlib.md5(feed_url + entry_key)[:16]` — deterministic, globally unique |
+
+### Phase 2 Backlog (deferred)
+
+- **Reddit ingestion** — replace PRAW with Reddit JSON API (`reddit.com/r/subreddit.json`), no OAuth required
+- **Barbell threshold UI** — expose `barbell_*` settings as user-configurable via web form (risk profile presets: Conservative / Moderate / Aggressive)
+- **Signal-to-ratio coupling** — macro sentiment aggregate dynamically shifts the SAFE_CORE / SATELLITE capital ratio (Phase 3)
+- **NewsAPI** — keyword-query news (`"NVDA OR inflation"`) for higher-relevance signals
+- **Frontend** — FastAPI + web UI per spec (currently CLI + Discord only)

@@ -74,10 +74,10 @@ class AlphaVantageAdapter(FinancialDataProvider):
             pass
         else:
             try:
-                ts_data, _ = await asyncio.to_thread(self._ts.get_daily_adjusted, ticker, outputsize="compact")
+                ts_data, _ = await asyncio.to_thread(self._ts.get_daily, ticker, outputsize="compact")
                 if len(ts_data) >= 90:
-                    latest = float(ts_data["5. adjusted close"].iloc[0])
-                    past = float(ts_data["5. adjusted close"].iloc[89])
+                    latest = float(ts_data["4. close"].iloc[0])
+                    past = float(ts_data["4. close"].iloc[89])
                     momentum_90d = (latest - past) / past * 100
             except Exception as e:
                 logger.warning("AV momentum failed for %s: %s", ticker, e)

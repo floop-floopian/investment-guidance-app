@@ -25,7 +25,7 @@ def run_pipeline(
     console.print(f"[bold green]Starting pipeline with capital ${capital:,.2f}...[/bold green]")
     run = asyncio.run(orch.run_on_demand(capital=capital))
     if run.status.value == "COMPLETED":
-        console.print(f"[green]✓ Pipeline completed[/green] — {run.shortlist_count} stocks, {run.allocation_count} allocations, Telegram: {'✓' if run.telegram_sent else '✗'}")
+        console.print(f"[green]✓ Pipeline completed[/green] — {run.shortlist_count} stocks, {run.allocation_count} allocations, Discord: {'✓' if run.discord_sent else '✗'}")
     elif run.status.value == "PARTIAL":
         console.print(f"[yellow]⚠ Pipeline completed with partial data[/yellow] — {run.error_message or ''}")
     else:

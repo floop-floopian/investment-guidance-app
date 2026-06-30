@@ -19,7 +19,7 @@ class BarbellService:
         if stock.market_cap is not None and stock.market_cap >= s.barbell_safe_market_cap_min:
             safe_qualifiers += 1
 
-        if safe_qualifiers >= 1:
+        if safe_qualifiers >= 2:
             return stock.model_copy(update={"barbell_class": BarbellClass.SAFE_CORE})
 
         sat_qualifiers = 0

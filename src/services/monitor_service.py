@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from src.adapters.reddit_adapter import RedditAdapter
 from src.adapters.rss_adapter import RSSAdapter
-from src.adapters.telegram_adapter import TelegramAdapter
+from src.adapters.discord_adapter import DiscordAdapter
 from src.services.sentiment_service import SentimentService
 from src.models.state_log import StateLogEntry, ActionType, LogLevel
 from src.models.stock import VolatilityTier
@@ -66,17 +66,17 @@ class MonitorService:
                 "prior": prior,
                 "delta": delta,
             })
-            telegram = TelegramAdapter()
+            discord = DiscordAdapter()
             message = (
-                f"*⚠️ Critical Macro Signal Detected*\n"
+                f"**⚠️ Critical Macro Signal Detected**\n"
                 f"Sentiment shift: `{prior:+.2f}` → `{aggregate:+.2f}` (Δ`{delta:.2f}`)\n"
                 f"Sources: {len(all_signals)} signals ingested."
             )
-            sent = await telegram.send_message(message)
+            sent = await discord.send_message(message)
             if sent:
-                self._log(run_id, ActionType.TELEGRAM_SENT, {"type": "critical_alert"})
+                self._log(run_id, ActionType.DISCORD_SENT, {"type": "critical_alert"})
             else:
-                self._log(run_id, ActionType.TELEGRAM_FAILED, {}, LogLevel.ERROR)
+                self._log(run_id, ActionType.DISCORD_FAILED, {}, LogLevel.ERROR)
         else:
             self._log(run_id, ActionType.MONITOR_CYCLE_COMPLETE, {
                 "aggregate": aggregate,

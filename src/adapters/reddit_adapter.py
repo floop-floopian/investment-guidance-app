@@ -11,15 +11,20 @@ class RedditAdapter(MacroSignalProvider):
     def __init__(self) -> None:
         import praw
         s = get_settings()
-        self._reddit = praw.Reddit(
-            client_id=s.reddit_client_id,
-            client_secret=s.reddit_client_secret,
-            user_agent=s.reddit_user_agent,
-        )
+        self._configured = bool(s.reddit_client_id and s.reddit_client_secret)
+        if self._configured:
+            self._reddit = praw.Reddit(
+                client_id=s.reddit_client_id,
+                client_secret=s.reddit_client_secret,
+                user_agent=s.reddit_user_agent,
+            )
         self._subreddits = s.reddit_subreddits
         self._limit = s.reddit_hot_post_limit
 
     async def fetch_signals(self) -> list[MacroSignal]:
+        if not self._configured:
+            logger.info("Reddit credentials not configured — skipping")
+            return []
         signals: list[MacroSignal] = []
         now = datetime.now(timezone.utc)
         for sub_name in self._subreddits:
