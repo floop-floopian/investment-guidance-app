@@ -26,14 +26,14 @@ async def test_cycle_logs_monitor_cycle_complete(mock_signal, tmp_path, mock_set
         patch("src.services.monitor_service.SentimentService") as MockSentiment,
         patch("src.services.monitor_service.supabase_store") as mock_store,
         patch("src.state.log_writer.get_settings", return_value=mock_settings),
-        patch("src.services.monitor_service.TelegramAdapter") as MockTelegram,
+        patch("src.services.monitor_service.DiscordAdapter") as MockDiscord,
     ):
         MockReddit.return_value.fetch_signals = AsyncMock(return_value=[mock_signal])
         MockRSS.return_value.fetch_signals = AsyncMock(return_value=[])
         MockSentiment.return_value.score_signals = AsyncMock(return_value=([mock_signal], 0.1))
         mock_store.get_last_aggregate.return_value = 0.05  # delta=0.05 < threshold, no alert
         mock_store.set_last_aggregate = MagicMock()
-        MockTelegram.return_value.send_message = AsyncMock(return_value=True)
+        MockDiscord.return_value.send_message = AsyncMock(return_value=True)
 
         from src.services.monitor_service import MonitorService
         svc = MonitorService()

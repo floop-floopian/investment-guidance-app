@@ -34,5 +34,5 @@
 - All clarifications resolved (2026-06-03):
   1. **Reddit subreddits**: r/investing, r/stocks, r/economics (user-configurable)
   2. **Single vs. multi-user**: Single-user, single-portfolio
-  3. **Reasoning generation**: LLM-generated via Claude API
+  3. **Reasoning generation**: LLM-generated via Groq API
 - Spec is ready for `/speckit-plan`

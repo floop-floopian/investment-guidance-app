@@ -15,25 +15,29 @@ def service():
 
 
 def test_safe_core_by_low_beta(service):
-    stock = _stock(beta=0.5)
+    # Requires 2 qualifying safe-core metrics; pair beta with P/E.
+    stock = _stock(beta=0.5, pe_ratio=15.0)
     result = service.classify(stock, macro_aggregate=0.0)
     assert result.barbell_class == BarbellClass.SAFE_CORE
 
 
 def test_safe_core_by_low_pe(service):
-    stock = _stock(pe_ratio=15.0, beta=1.5)
+    # Requires 2 qualifying safe-core metrics; pair P/E with dividend yield, beta non-qualifying.
+    stock = _stock(pe_ratio=15.0, dividend_yield=2.0, beta=1.5)
     result = service.classify(stock, macro_aggregate=0.0)
     assert result.barbell_class == BarbellClass.SAFE_CORE
 
 
 def test_safe_core_by_dividend_yield(service):
-    stock = _stock(dividend_yield=2.0, beta=1.5)
+    # Requires 2 qualifying safe-core metrics; pair dividend yield with market cap, beta non-qualifying.
+    stock = _stock(dividend_yield=2.0, market_cap=20_000_000_000.0, beta=1.5)
     result = service.classify(stock, macro_aggregate=0.0)
     assert result.barbell_class == BarbellClass.SAFE_CORE
 
 
 def test_safe_core_by_large_market_cap(service):
-    stock = _stock(market_cap=20_000_000_000.0, beta=1.5)
+    # Requires 2 qualifying safe-core metrics; pair market cap with beta, P/E non-qualifying.
+    stock = _stock(market_cap=20_000_000_000.0, beta=0.5, pe_ratio=25.0)
     result = service.classify(stock, macro_aggregate=0.0)
     assert result.barbell_class == BarbellClass.SAFE_CORE
 

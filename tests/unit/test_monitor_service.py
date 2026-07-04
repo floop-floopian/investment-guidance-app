@@ -73,7 +73,7 @@ async def test_critical_signal_detected_fires_when_delta_exceeds_threshold(servi
         patch("src.services.monitor_service.SentimentService") as MockSentiment,
         patch("src.services.monitor_service.supabase_store") as mock_store,
         patch("src.services.monitor_service.log_writer") as mock_log,
-        patch("src.services.monitor_service.TelegramAdapter") as MockTelegram,
+        patch("src.services.monitor_service.DiscordAdapter") as MockDiscord,
     ):
         from datetime import datetime, timezone
         from src.models.macro_signal import MacroSignal, SourceType
@@ -90,11 +90,11 @@ async def test_critical_signal_detected_fires_when_delta_exceeds_threshold(servi
         mock_store.get_last_aggregate.return_value = 0.1  # delta = 0.7 > 0.3
         mock_store.set_last_aggregate = MagicMock()
         mock_log.append_entry = MagicMock()
-        MockTelegram.return_value.send_message = fake_send
+        MockDiscord.return_value.send_message = fake_send
 
         await service.run_cycle(run_id="test-run")
 
-    assert triggered["alert"], "Expected Telegram alert for critical signal"
+    assert triggered["alert"], "Expected Discord alert for critical signal"
 
 
 @pytest.mark.asyncio
@@ -108,7 +108,7 @@ async def test_no_alert_when_delta_below_threshold(service, mock_settings):
         patch("src.services.monitor_service.SentimentService") as MockSentiment,
         patch("src.services.monitor_service.supabase_store") as mock_store,
         patch("src.services.monitor_service.log_writer") as mock_log,
-        patch("src.services.monitor_service.TelegramAdapter") as MockTelegram,
+        patch("src.services.monitor_service.DiscordAdapter") as MockDiscord,
     ):
         from datetime import datetime, timezone
         from src.models.macro_signal import MacroSignal, SourceType
@@ -125,7 +125,7 @@ async def test_no_alert_when_delta_below_threshold(service, mock_settings):
         mock_store.get_last_aggregate.return_value = 0.1  # delta = 0.05 < 0.3
         mock_store.set_last_aggregate = MagicMock()
         mock_log.append_entry = MagicMock()
-        MockTelegram.return_value.send_message = fake_send
+        MockDiscord.return_value.send_message = fake_send
 
         await service.run_cycle(run_id="test-run")
 

@@ -4,7 +4,7 @@
 
 - Python 3.12+
 - A Supabase project (free tier works)
-- API keys: Anthropic, Finnhub, Alpha Vantage, Reddit app credentials, Telegram Bot
+- API keys: Groq, Finnhub, Alpha Vantage, Reddit app credentials, Discord Bot
 
 ## 1. Environment Setup
 
@@ -23,14 +23,14 @@ cp .env.example .env
 
 **.env contents**:
 ```
-ANTHROPIC_API_KEY=sk-ant-...
+GROQ_API_KEY=gsk_...
+GROQ_MODEL=llama-3.3-70b-versatile
 FINNHUB_API_KEY=...
 ALPHA_VANTAGE_API_KEY=...
 REDDIT_CLIENT_ID=...
 REDDIT_CLIENT_SECRET=...
 REDDIT_USER_AGENT=investment-guidance-app/0.1
-TELEGRAM_BOT_TOKEN=...
-TELEGRAM_CHAT_ID=...
+DISCORD_BOT_TOKEN=...
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_KEY=your-anon-or-service-key
 STATE_LOG_PATH=~/.investment-guidance/state.ndjson
@@ -57,10 +57,10 @@ investment-guidance run-pipeline --capital 10000
 Expected output:
 ```
 Starting pipeline with capital $10,000.00...
-✓ Pipeline completed — 3 stocks, 3 allocations, Telegram: ✓
+✓ Pipeline completed — 3 stocks, 3 allocations, Discord: ✓
 ```
 
-Check your Telegram — you should receive a message with the shortlist and allocation breakdown.
+Check your Discord DMs — you should receive a message with the shortlist and allocation breakdown.
 
 ## 4. Starting the Recurring Monitor
 
@@ -68,7 +68,7 @@ Check your Telegram — you should receive a message with the shortlist and allo
 investment-guidance start-monitor
 ```
 
-The monitor runs indefinitely (Ctrl+C to stop). It polls Reddit and RSS on the configured interval and sends a Telegram alert when macro sentiment shifts significantly.
+The monitor runs indefinitely (Ctrl+C to stop). It polls Reddit and RSS on the configured interval and sends a Discord alert when macro sentiment shifts significantly.
 
 ## 5. Reading the Audit Log
 
@@ -99,7 +99,7 @@ All 50 tests should pass. No API keys are required — all external adapters are
 | Problem | Solution |
 |---------|----------|
 | `No qualifying positions found` | Check STOCK_TICKERS and barbell thresholds in .env |
-| Telegram not received | Verify BOT_TOKEN and CHAT_ID; check TELEGRAM_FAILED in logs |
+| Discord not received | Verify DISCORD_BOT_TOKEN and that the user is active in Supabase `users`; check DISCORD_FAILED in logs |
 | Alpha Vantage daily limit | Reduce STOCK_TICKERS count or upgrade AV plan |
 | Finnhub rate limit errors | Pipeline auto-retries; reduce ticker count if persistent |
 | Supabase connection error | State log still works locally; check SUPABASE_URL/KEY |

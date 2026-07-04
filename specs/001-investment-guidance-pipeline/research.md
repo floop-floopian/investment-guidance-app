@@ -8,19 +8,21 @@
 
 ## Decision 1: LLM Framework
 
-**Decision**: Raw Anthropic SDK (`anthropic` Python package, `claude-sonnet-4-6`)
+**Decision**: Raw Groq SDK (`groq` Python package, `llama-3.3-70b-versatile`)
 — no LangChain.
 
 **Rationale**: LangChain adds abstraction overhead for a single-provider,
 single-model use case. The direct SDK is simpler (Principle V — YAGNI), has
-better type safety, lower dependency surface, and easier to debug. Prompt
-caching via the Anthropic SDK also reduces per-run cost significantly for the
-repeated system-prompt pattern used in sentiment scoring.
+better type safety, lower dependency surface, and easier to debug. Groq's
+inference speed and free-tier limits are the main draw for a low-latency,
+low-cost sentiment-scoring workload.
 
 **Alternatives considered**:
 - LangChain — rejected: over-abstraction for one provider, frequent breaking
   changes, heavier dependency footprint.
-- OpenAI-compatible proxy — rejected: no benefit over direct Anthropic SDK.
+- OpenAI-compatible proxy — rejected: no benefit over direct Groq SDK.
+- Anthropic (Claude) — superseded by Groq; retained no dead code since the
+  migration only touched the LLM client construction, not adapter files.
 
 ---
 
@@ -112,7 +114,7 @@ trigger alert flow.
 
 ## Decision 6: Sentiment Scoring Strategy
 
-**Decision**: Claude API (`claude-sonnet-4-6`) with structured JSON output.
+**Decision**: Groq API (`llama-3.3-70b-versatile`) with structured JSON output.
 Single batched prompt per pipeline run sends all ingested titles/summaries and
 returns per-item sentiment scores + an aggregate signal.
 
@@ -144,7 +146,7 @@ to +1.0 (bullish). Return: {"items": [{"id": ..., "score": ..., "label": ...}],
 reasoning text only — not the classification decision.
 
 **Rationale**: Deterministic, auditable, easily tuned without retraining.
-Classification logic is pure Python (no API cost). Claude API generates the
+Classification logic is pure Python (no API cost). Groq API generates the
 "why" explanation after classification.
 
 **Default thresholds**:
@@ -174,7 +176,7 @@ the log file. Local file is the source of truth per Principle VI.
 **Write order per action** (enforced by `log_writer.py`):
 1. Append to local NDJSON file
 2. Upsert to Supabase (non-blocking, best-effort)
-3. Send Telegram notification (if applicable)
+3. Send Discord notification (if applicable)
 
 **Alternatives considered**:
 - SQLite local only — not in tech stack; adds a second ORM; Supabase already
@@ -210,7 +212,7 @@ rationale.
 3. Within each band: weight by risk-reward score (normalized to sum to 1.0).
 4. Enforce minimum position size ($500 default, configurable); remove
    positions below minimum and reallocate.
-5. Pass allocation table + stock data to Claude API → returns per-position
+5. Pass allocation table + stock data to Groq API → returns per-position
    and overall rationale text.
 
 **Alternatives considered**:

@@ -22,7 +22,7 @@ Every feature MUST begin with an approved spec. No implementation starts without
 Spec → Plan → Tasks sequence. Deviating from this sequence requires explicit owner approval.
 
 ### II. Adapter Pattern for External Dependencies
-All external data sources (Finnhub, Alpha Vantage, Reddit API, RSS, Telegram Bot API) MUST
+All external data sources (Finnhub, Alpha Vantage, Reddit API, RSS, Discord Bot API) MUST
 be accessed through abstract provider interfaces. Swapping a provider MUST require zero
 changes outside the adapter layer — configuration only.
 
@@ -42,7 +42,7 @@ justified by a real, present requirement. YAGNI applies at all times.
 ### VI. Idempotent State Log
 All critical system actions (BUY / SELL / HOLD recommendations) MUST be written to the
 local state log before any external notification is sent. The state log is the source of
-truth. Telegram (or any notification layer) is delivery-only and non-blocking.
+truth. Discord (or any notification layer) is delivery-only and non-blocking.
 
 ## Tech Stack
 
@@ -52,7 +52,7 @@ truth. Telegram (or any notification layer) is delivery-only and non-blocking.
 - **Scheduler**: APScheduler
 - **Data Sources**: Finnhub + Alpha Vantage (adapter-wrapped, swappable)
 - **Sentiment Sources**: Reddit API + RSS feeds (adapter-wrapped, swappable)
-- **Notifications**: Telegram Bot API
+- **Notifications**: Discord Bot API
 - **Frontend**: React
 
 ## Quality Gates

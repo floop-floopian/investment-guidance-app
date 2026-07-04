@@ -34,22 +34,20 @@ async def test_all_action_types_present_in_ndjson(tmp_path, mock_settings):
         ActionType.ANALYSIS_COMPLETE.value,
         ActionType.BARBELL_CLASSIFIED.value,
         ActionType.ALLOCATION_GENERATED.value,
-        ActionType.TELEGRAM_SENT.value,
+        ActionType.DISCORD_SENT.value,
         ActionType.PIPELINE_COMPLETED.value,
     }
 
     with (
-        patch("src.config.settings.get_settings", return_value=mock_settings),
-        patch("src.state.log_writer.get_settings", return_value=mock_settings),
         patch("src.state.supabase_store._client", side_effect=Exception("no supabase")),
         patch("src.pipeline.orchestrator.RedditAdapter") as MockReddit,
         patch("src.pipeline.orchestrator.RSSAdapter") as MockRSS,
         patch("src.pipeline.orchestrator.FinnhubAdapter") as MockFinnhub,
-        patch("src.pipeline.orchestrator.AlphaVantageAdapter") as MockAV,
-        patch("src.pipeline.orchestrator.TelegramAdapter") as MockTelegram,
-        patch("src.services.sentiment_service.SentimentService._call_claude") as mock_claude,
-        patch("src.services.shortlist_service.ShortlistService._call_claude_reasoning") as mock_reason,
-        patch("src.services.allocation_service.AllocationService._call_claude_rationale") as mock_rat,
+        patch("src.pipeline.orchestrator.YFinanceAdapter") as MockYFinance,
+        patch("src.pipeline.orchestrator.DiscordAdapter") as MockDiscord,
+        patch("src.services.sentiment_service.SentimentService._call_llm") as mock_llm,
+        patch("src.services.shortlist_service.ShortlistService._call_llm_reasoning") as mock_reason,
+        patch("src.services.allocation_service.AllocationService._call_llm_rationale") as mock_rat,
     ):
         MockReddit.return_value.fetch_signals = AsyncMock(return_value=[MOCK_SIGNAL])
         MockRSS.return_value.fetch_signals = AsyncMock(return_value=[])
@@ -58,9 +56,9 @@ async def test_all_action_types_present_in_ndjson(tmp_path, mock_settings):
             return_value={"pe_ratio": 15.0, "market_cap": 15_000_000_000.0, "beta": 0.7}
         )
         MockFinnhub.return_value.get_technicals = AsyncMock(return_value={})
-        MockAV.return_value.get_technicals = AsyncMock(return_value={"rsi_14": 50.0, "momentum_90d": 5.0})
-        MockTelegram.return_value.send_message = AsyncMock(return_value=True)
-        mock_claude.return_value = {
+        MockYFinance.return_value.get_technicals = AsyncMock(return_value={"rsi_14": 50.0, "momentum_90d": 5.0})
+        MockDiscord.return_value.send_message = AsyncMock(return_value=True)
+        mock_llm.return_value = {
             "items": [{"id": "sig-1", "score": 0.2, "label": "NEUTRAL"}],
             "aggregate": 0.2,
             "summary": "Steady.",
@@ -87,20 +85,18 @@ async def test_state_log_written_before_telegram(tmp_path, mock_settings):
     mock_settings.state_log_path = tmp_path / "state.ndjson"
     mock_settings.capital_min_position_usd = 0.0
 
-    telegram_seen_allocation = {"result": False}
+    discord_seen_allocation = {"result": False}
 
     with (
-        patch("src.config.settings.get_settings", return_value=mock_settings),
-        patch("src.state.log_writer.get_settings", return_value=mock_settings),
         patch("src.state.supabase_store._client", side_effect=Exception("no supabase")),
         patch("src.pipeline.orchestrator.RedditAdapter") as MockReddit,
         patch("src.pipeline.orchestrator.RSSAdapter") as MockRSS,
         patch("src.pipeline.orchestrator.FinnhubAdapter") as MockFinnhub,
-        patch("src.pipeline.orchestrator.AlphaVantageAdapter") as MockAV,
-        patch("src.pipeline.orchestrator.TelegramAdapter") as MockTelegram,
-        patch("src.services.sentiment_service.SentimentService._call_claude") as mock_claude,
-        patch("src.services.shortlist_service.ShortlistService._call_claude_reasoning") as mock_reason,
-        patch("src.services.allocation_service.AllocationService._call_claude_rationale") as mock_rat,
+        patch("src.pipeline.orchestrator.YFinanceAdapter") as MockYFinance,
+        patch("src.pipeline.orchestrator.DiscordAdapter") as MockDiscord,
+        patch("src.services.sentiment_service.SentimentService._call_llm") as mock_llm,
+        patch("src.services.shortlist_service.ShortlistService._call_llm_reasoning") as mock_reason,
+        patch("src.services.allocation_service.AllocationService._call_llm_rationale") as mock_rat,
     ):
         async def check_log_then_send(msg):
             log_path = tmp_path / "state.ndjson"
@@ -108,7 +104,7 @@ async def test_state_log_written_before_telegram(tmp_path, mock_settings):
                 with open(log_path) as f:
                     actions = [json.loads(l)["action"] for l in f if l.strip()]
                 if ActionType.ALLOCATION_GENERATED.value in actions:
-                    telegram_seen_allocation["result"] = True
+                    discord_seen_allocation["result"] = True
             return True
 
         MockReddit.return_value.fetch_signals = AsyncMock(return_value=[MOCK_SIGNAL])
@@ -118,9 +114,9 @@ async def test_state_log_written_before_telegram(tmp_path, mock_settings):
             return_value={"pe_ratio": 15.0, "market_cap": 15_000_000_000.0, "beta": 0.7}
         )
         MockFinnhub.return_value.get_technicals = AsyncMock(return_value={})
-        MockAV.return_value.get_technicals = AsyncMock(return_value={"rsi_14": 50.0})
-        MockTelegram.return_value.send_message = check_log_then_send
-        mock_claude.return_value = {
+        MockYFinance.return_value.get_technicals = AsyncMock(return_value={"rsi_14": 50.0})
+        MockDiscord.return_value.send_message = check_log_then_send
+        mock_llm.return_value = {
             "items": [{"id": "sig-1", "score": 0.2, "label": "NEUTRAL"}],
             "aggregate": 0.2,
             "summary": "Steady.",
@@ -132,5 +128,5 @@ async def test_state_log_written_before_telegram(tmp_path, mock_settings):
         orch = PipelineOrchestrator()
         await orch.run_on_demand(capital=10_000.0)
 
-    assert telegram_seen_allocation["result"], \
-        "ALLOCATION_GENERATED must be logged before Telegram send (Principle VI)"
+    assert discord_seen_allocation["result"], \
+        "ALLOCATION_GENERATED must be logged before Discord send (Principle VI)"

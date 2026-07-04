@@ -45,7 +45,7 @@
 - [ ] Tests are planned before any implementation task (Principle III — TDD)
 - [ ] No SaaS/multi-user features included unless Phase 1 is complete (Principle IV)
 - [ ] Complexity is justified — no over-engineering (Principle V — YAGNI)
-- [ ] State log write precedes any Telegram notification in the design (Principle VI)
+- [ ] State log write precedes any Discord notification in the design (Principle VI)
 
 ## Project Structure
 

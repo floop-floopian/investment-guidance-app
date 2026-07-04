@@ -1,6 +1,14 @@
 -- Investment Guidance App — initial schema
 -- Run this migration against your Supabase project.
 
+-- users: Discord recipients for pipeline notifications
+create table if not exists users (
+    id                uuid primary key default gen_random_uuid(),
+    discord_user_id   text not null unique,
+    is_active         boolean not null default true,
+    created_at        timestamptz not null default now()
+);
+
 -- pipeline_runs: top-level record per pipeline execution
 create table if not exists pipeline_runs (
     id              text primary key,
@@ -12,7 +20,7 @@ create table if not exists pipeline_runs (
     macro_signal_count integer not null default 0,
     shortlist_count    integer not null default 0,
     allocation_count   integer not null default 0,
-    telegram_sent      boolean not null default false,
+    discord_sent       boolean not null default false,
     error_message      text,
     created_at      timestamptz not null default now()
 );

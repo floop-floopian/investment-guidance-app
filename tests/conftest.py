@@ -1,14 +1,16 @@
 """Shared test configuration: mock settings so no real API keys are needed."""
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import pytest
+import src.config.settings as settings_module
 
 
 @pytest.fixture(autouse=True)
 def mock_settings(tmp_path):
     """Provide minimal mock settings for all tests."""
     s = MagicMock()
-    s.anthropic_api_key = "test-anthropic-key"
+    s.groq_api_key = "test-groq-key"
+    s.groq_model = "llama-3.3-70b-versatile"
     s.finnhub_api_key = "test-finnhub-key"
     s.alpha_vantage_api_key = "test-av-key"
     s.reddit_client_id = "test-reddit-id"
@@ -16,8 +18,7 @@ def mock_settings(tmp_path):
     s.reddit_user_agent = "test-agent"
     s.reddit_subreddits = ["investing"]
     s.reddit_hot_post_limit = 5
-    s.telegram_bot_token = "test-bot-token"
-    s.telegram_chat_id = "test-chat-id"
+    s.discord_bot_token = "test-bot-token"
     s.supabase_url = "https://test.supabase.co"
     s.supabase_key = "test-supabase-key"
     s.state_log_path = tmp_path / "state.ndjson"
@@ -39,5 +40,10 @@ def mock_settings(tmp_path):
     s.stock_tickers = ["AAPL"]
     s.rss_feed_urls = []
 
-    with patch("src.config.settings.get_settings", return_value=s):
-        yield s
+    # get_settings() caches into settings_module._settings; setting the cache
+    # directly (rather than patching get_settings) reaches every module that
+    # already did `from src.config.settings import get_settings`, since they
+    # all call the same underlying function object.
+    settings_module._settings = s
+    yield s
+    settings_module._settings = None

@@ -20,13 +20,13 @@ runs fundamental and technical analysis on the configured stock universe,
 applies the barbell strategy filter, and returns a risk-reward scored shortlist.
 For each stock on the shortlist the system provides reasoning. The system then
 allocates the user's capital across the recommended positions, with a written
-rationale for each allocation. The full result is sent to the user via Telegram.
+rationale for each allocation. The full result is sent to the user via Discord.
 
 **Why this priority**: This is the core value proposition of the app. Everything
 else depends on this working end-to-end.
 
 **Independent Test**: User runs the pipeline with a capital figure (e.g., $10,000).
-System completes analysis and delivers a Telegram message containing a shortlist
+System completes analysis and delivers a Discord message containing a shortlist
 of ≥1 stock with a risk-reward score, per-stock reasoning, and a capital
 allocation table with rationale. No prior state required.
 
@@ -34,7 +34,7 @@ allocation table with rationale. No prior state required.
 
 1. **Given** the user provides $10,000 as available capital,
    **When** the pipeline is triggered,
-   **Then** the system delivers a Telegram notification containing a shortlist
+   **Then** the system delivers a Discord notification containing a shortlist
    of stocks with risk-reward scores, per-stock reasoning, and a capital
    allocation breakdown that sums to ≤ $10,000.
 
@@ -46,7 +46,7 @@ allocation table with rationale. No prior state required.
 
 3. **Given** no stocks pass the barbell strategy filter thresholds,
    **When** the pipeline completes,
-   **Then** the system sends a Telegram notification explaining that no
+   **Then** the system sends a Discord notification explaining that no
    qualifying positions were found rather than forcing invalid recommendations.
 
 ---
@@ -55,21 +55,21 @@ allocation table with rationale. No prior state required.
 
 The system runs on a configurable schedule, continuously re-ingesting macro
 news from Reddit and RSS. When a critical signal is detected (significant
-sentiment shift, breaking macro event), the system sends a Telegram alert
+sentiment shift, breaking macro event), the system sends a Discord alert
 immediately without waiting for the next scheduled full analysis run.
 
 **Why this priority**: Timely alerts allow the user to act on market-moving
 events. Without this, the app is only useful when manually triggered.
 
 **Independent Test**: Configure the scheduler for a short interval (e.g., 5 min).
-Wait for a news cycle. Verify a Telegram message is received when a high-scoring
+Wait for a news cycle. Verify a Discord message is received when a high-scoring
 signal is detected. The message should include the signal summary and source.
 
 **Acceptance Scenarios**:
 
 1. **Given** the recurring monitor is running,
    **When** a macro news item scores above the critical threshold,
-   **Then** a Telegram notification is sent within 60 seconds of detection,
+   **Then** a Discord notification is sent within 60 seconds of detection,
    containing the signal summary, source, and sentiment score.
 
 2. **Given** the monitor has run multiple cycles,
@@ -79,7 +79,7 @@ signal is detected. The message should include the signal summary and source.
 
 3. **Given** no critical signals appear during a monitoring cycle,
    **When** the cycle completes,
-   **Then** no Telegram notification is sent and the cycle is logged as
+   **Then** no Discord notification is sent and the cycle is logged as
    "no action required."
 
 ---
@@ -104,7 +104,7 @@ each pipeline action with timestamps.
    **When** the user opens the state log file,
    **Then** entries exist for macro ingestion, sentiment scoring, stock
    analysis, barbell filtering, shortlist generation, capital allocation,
-   and Telegram dispatch — each with an ISO timestamp.
+   and Discord dispatch — each with an ISO timestamp.
 
 2. **Given** a prior run produced a stock recommendation,
    **When** the user reviews that run's log entry,
@@ -124,7 +124,7 @@ each pipeline action with timestamps.
   across all recommendations?
   System MUST notify the user that no allocations can be made at the given
   capital level and suggest minimum required capital.
-- What happens when Telegram delivery fails?
+- What happens when Discord delivery fails?
   System MUST log the failure and retry at least once before marking the
   notification as undelivered in the state log.
 
@@ -162,7 +162,7 @@ each pipeline action with timestamps.
 - **FR-011**: System MUST append a structured log entry to a persistent state
   file for every significant action taken (ingestion, scoring, analysis,
   allocation, notification).
-- **FR-012**: System MUST send a Telegram message for: completed on-demand
+- **FR-012**: System MUST send a Discord message for: completed on-demand
   analysis results, critical macro signal detections, and allocation proposals.
 - **FR-013**: System MUST handle API failures gracefully — logging errors,
   retrying where appropriate, and completing the run with partial data rather
@@ -189,8 +189,8 @@ each pipeline action with timestamps.
 ### Measurable Outcomes
 
 - **SC-001**: On-demand pipeline completes end-to-end (ingestion through
-  Telegram delivery) within 5 minutes of being triggered.
-- **SC-002**: Telegram notifications for critical signals are delivered within
+  Discord delivery) within 5 minutes of being triggered.
+- **SC-002**: Discord notifications for critical signals are delivered within
   60 seconds of signal detection.
 - **SC-003**: Every pipeline run produces a complete, human-readable state log
   entry covering all major actions in that run.
@@ -215,7 +215,7 @@ each pipeline action with timestamps.
   allocation of capital; this is configurable via BARBELL_SAFE_CORE_RATIO env
   var. Barbell classification thresholds are also configurable. Both will be
   exposed as UI controls in Phase 2 (React frontend).
-- "Critical signal" for Telegram alert is defined as: aggregate sentiment score
+- "Critical signal" for Discord alert is defined as: aggregate sentiment score
   shifting by more than a configurable threshold (e.g., ±0.3) within a single
   monitoring cycle.
 - This is a single-user, single-portfolio tool. No multi-user support or
@@ -224,10 +224,10 @@ each pipeline action with timestamps.
   stored locally; no remote database required for initial version.
 - Finnhub and Alpha Vantage API keys are provided via environment variables or
   a local config file; no key management UI is required.
-- Allocation and per-stock reasoning is generated by an LLM (Claude API),
-  producing natural-language rationale. Claude API key is provided via
+- Allocation and per-stock reasoning is generated by an LLM (Groq API),
+  producing natural-language rationale. Groq API key is provided via
   environment variable.
-- Telegram delivery uses a bot token and a single configured chat ID (one
-  destination per deployment).
+- Discord delivery uses a single bot token and DMs every active user listed in
+  the Supabase `users` table (multi-recipient, not a single fixed chat ID).
 - The scheduler for recurring checks is a simple time-based loop (e.g., cron
   or sleep interval) — not a distributed job queue.

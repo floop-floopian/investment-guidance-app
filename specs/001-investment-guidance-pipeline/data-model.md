@@ -98,6 +98,21 @@ Represents a single position in the capital allocation output.
 
 ---
 
+### Users (notification recipients)
+
+Supabase-only table (no corresponding Pydantic model) listing Discord accounts
+that should receive pipeline notifications. `DiscordAdapter.send_message`
+reads all rows with `is_active = true` and DMs each one.
+
+| Field             | Type       | Description                                |
+|-------------------|------------|---------------------------------------------|
+| `id`              | `uuid`     | Primary key                                 |
+| `discord_user_id` | `str`      | Discord snowflake ID for the DM recipient   |
+| `is_active`       | `bool`     | Whether this user currently receives alerts |
+| `created_at`      | `datetime` | Row creation timestamp                      |
+
+---
+
 ### PipelineRun
 
 Top-level record for a single end-to-end pipeline execution.
@@ -113,7 +128,7 @@ Top-level record for a single end-to-end pipeline execution.
 | `macro_signal_count` | `int`     | Number of macro signals ingested                 |
 | `shortlist_count`   | `int`      | Number of stocks on shortlist (passed barbell filter) |
 | `allocation_count`  | `int`      | Number of positions allocated                    |
-| `telegram_sent`     | `bool`     | Whether Telegram notification was dispatched     |
+| `discord_sent`      | `bool`     | Whether Discord notification was dispatched      |
 | `error_message`     | `str \| None` | Error detail if status is FAILED or PARTIAL   |
 
 **State transitions**:
@@ -146,8 +161,8 @@ NDJSON file and Supabase `state_log` table.
 | `ANALYSIS_COMPLETE`       | Fundamental + technical analysis finished    |
 | `BARBELL_CLASSIFIED`      | Barbell filter applied, shortlist produced   |
 | `ALLOCATION_GENERATED`    | Capital allocation produced                  |
-| `TELEGRAM_SENT`           | Telegram notification dispatched             |
-| `TELEGRAM_FAILED`         | Telegram delivery failed (with retry count)  |
+| `DISCORD_SENT`            | Discord notification dispatched              |
+| `DISCORD_FAILED`          | Discord delivery failed (with retry count)   |
 | `API_ERROR`               | External API call failed (provider, ticker, error) |
 | `MONITOR_CYCLE_COMPLETE`  | Scheduled monitor cycle finished (no alert)  |
 | `CRITICAL_SIGNAL_DETECTED`| Sentiment delta exceeded threshold           |

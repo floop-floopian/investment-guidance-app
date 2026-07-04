@@ -3,7 +3,7 @@
 Single-user investment guidance pipeline: ingests macro sentiment from Reddit
 and RSS, analyses stocks via Finnhub/Alpha Vantage, applies a barbell strategy
 filter, and delivers LLM-reasoned recommendations and capital allocations via
-Telegram.
+Discord.
 
 ## Quick Start (5 steps)
 
@@ -42,7 +42,7 @@ Reddit / RSS
 [RedditAdapter] [RSSAdapter]     ← MacroSignalProvider (adapter pattern)
      │
      ▼
-[SentimentService] ──────────── Claude API (batch scoring)
+[SentimentService] ──────────── Groq API (batch scoring)
      │
      ▼
 [FinnhubAdapter] [AlphaVantageAdapter]  ← FinancialDataProvider
@@ -54,31 +54,31 @@ Reddit / RSS
 [BarbellService] → classifies SAFE_CORE / SATELLITE / EXCLUDED
      │
      ▼
-[ShortlistService] → risk-reward scored + Claude reasoning
+[ShortlistService] → risk-reward scored + Groq reasoning
      │
      ▼
-[AllocationService] → 60/40 capital split + Claude rationale
+[AllocationService] → 60/40 capital split + Groq rationale
      │
      ▼
-[StateLogWriter] → NDJSON + Supabase   ← written BEFORE Telegram
+[StateLogWriter] → NDJSON + Supabase   ← written BEFORE Discord
      │
      ▼
-[TelegramAdapter] → delivers notification
+[DiscordAdapter] → delivers notification
 ```
 
 ## Configuration Reference
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ANTHROPIC_API_KEY` | — | Claude API key |
+| `GROQ_API_KEY` | — | Groq API key |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model name |
 | `FINNHUB_API_KEY` | — | Finnhub API key |
 | `ALPHA_VANTAGE_API_KEY` | — | Alpha Vantage key |
 | `REDDIT_CLIENT_ID` | — | Reddit app client ID |
 | `REDDIT_CLIENT_SECRET` | — | Reddit app secret |
 | `REDDIT_USER_AGENT` | `investment-guidance-app/0.1` | Reddit user agent |
 | `REDDIT_SUBREDDITS` | `["investing","stocks","economics"]` | Subreddits to poll |
-| `TELEGRAM_BOT_TOKEN` | — | Telegram bot token |
-| `TELEGRAM_CHAT_ID` | — | Telegram chat/channel ID |
+| `DISCORD_BOT_TOKEN` | — | Discord bot token (DMs active users listed in Supabase `users` table) |
 | `SUPABASE_URL` | — | Supabase project URL |
 | `SUPABASE_KEY` | — | Supabase anon/service key |
 | `STATE_LOG_PATH` | `~/.investment-guidance/state.ndjson` | Local audit log path |

@@ -22,6 +22,9 @@ build/
 htmlcov/
 coverage.xml
 
+# Run output
+*.log
+
 # IDE
 .vscode/
 .idea/
