@@ -5,6 +5,13 @@ and RSS, analyses stocks via Finnhub/Alpha Vantage, applies a barbell strategy
 filter, and delivers LLM-reasoned recommendations and capital allocations via
 Discord.
 
+> **Disclaimer**: This is a proof-of-concept engineering portfolio project.
+> It surfaces data and model-generated reasoning (e.g. "this stock passed the
+> barbell filter," "aggregate sentiment shifted") using best-effort,
+> potentially delayed or incomplete data from third-party APIs. It does not
+> provide financial advice, and no real financial services are offered. Do
+> not use this to make actual investment decisions.
+
 ## Quick Start (5 steps)
 
 ```bash

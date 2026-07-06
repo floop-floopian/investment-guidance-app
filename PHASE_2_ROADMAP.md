@@ -91,6 +91,15 @@ At low N (e.g., first 20–50 users), `F/N` dominates — the fixed Supabase/hos
 
 The key discipline: **Premium-tier costs (X/Twitter API) must be priced into the Premium tier itself**, not smeared across all users — otherwise Free/Pro users are subsidizing a feature they don't use, which is the kind of unit-economics mistake that gets caught immediately in a PM interview.
 
+### Required: reasoning-text framing constraint (do not skip this)
+
+Charging money for delivery/tooling is legally different from charging for individualized investment advice — but that distinction lives entirely in *what the product's text says*, not in the disclaimer. "Apple hit its 20-day moving average" is data. "Apple is the best buy today" is advice, and a paid subscription delivering advice-framed text is a materially different regulatory posture (investment-advisor registration territory), disclaimer or not.
+
+This is an engineering requirement for Phase 2C, not a legal footnote:
+- Audit every LLM prompt that generates user-facing reasoning text (`shortlist_service.py`'s `_call_llm_reasoning`, `allocation_service.py`'s `_call_llm_rationale`) and constrain the system prompt to data-framed language: report what indicators/signals triggered, not imperative recommendations.
+- Add this as an explicit acceptance check before Phase 2C ships: read a sample of generated reasoning text and confirm it reads as "here's what the data shows," never "you should buy/sell X."
+- Revisit this specifically if subscription pricing ever moves from "pay for delivery/tooling" toward "pay for the recommendation itself" — that reframing changes the legal analysis regardless of prompt wording.
+
 ---
 
 ## Phase 2D — Premium Data Sources (contingent, not committed)
@@ -119,4 +128,4 @@ Carried over from the existing interview-pitch framing (`Product Roadmap/Pitch t
 
 ## Disclaimer Note (carried over, still applies)
 
-This remains a portfolio/engineering project. The existing README disclaimer language should stay, and stays accurate as long as the product surfaces data and reasoning ("aggregate sentiment shifted," "this stock passed the barbell filter") rather than direct personalized buy/sell instructions. Phase 2's subscription model doesn't change this line — charging for delivery/tooling is different from charging for individualized investment advice, but the distinction is about *what the product says*, not what it charges, and needs to stay true as reasoning-text prompts evolve.
+This remains a portfolio/engineering project. The README disclaimer added in Phase 1 stays accurate as long as the product surfaces data and reasoning ("aggregate sentiment shifted," "this stock passed the barbell filter") rather than direct personalized buy/sell instructions — see the reasoning-text framing requirement in Phase 2C above, which is what actually keeps this true once the subscription model ships, not the disclaimer text itself.
