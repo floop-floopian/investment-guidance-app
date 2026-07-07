@@ -12,6 +12,14 @@ Discord.
 > provide financial advice, and no real financial services are offered. Do
 > not use this to make actual investment decisions.
 
+## See It Run
+
+![Terminal run triggering a Discord delivery](assets/demo.gif)
+
+`investment-guidance run-pipeline --capital 10000` end-to-end: macro
+ingestion → sentiment scoring → barbell classification → shortlist →
+capital allocation → Discord delivery, all in one run.
+
 ## Quick Start (5 steps)
 
 ```bash

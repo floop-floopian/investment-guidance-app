@@ -43,6 +43,16 @@ class PipelineOrchestrator:
         except Exception:
             pass
 
+    @staticmethod
+    def _truncate(text: str | None, limit: int) -> str:
+        """Safety net for when the LLM ignores the short-clause instruction — trims at
+        the last word boundary before the limit rather than cutting mid-word."""
+        text = text or "N/A"
+        if len(text) <= limit:
+            return text
+        cut = text[:limit].rsplit(" ", 1)[0]
+        return cut + "..."
+
     def _format_discord_message(self, run: PipelineRun, stocks, allocations, aggregate: float) -> str:
         lines = [
             f"**Investment Guidance — Run {run.id[:8]}**",
@@ -50,17 +60,17 @@ class PipelineOrchestrator:
             "**Shortlist:**",
         ]
         for stock in stocks:
+            reasoning = self._truncate(stock.reasoning, 110)
             lines.append(
                 f"• **{stock.ticker}** [{stock.barbell_class.value}] "
-                f"Score: `{stock.risk_reward_score:.2f}`\n"
-                f"  {stock.reasoning or 'N/A'}"
+                f"`{stock.risk_reward_score:.2f}` — {reasoning}"
             )
         lines.append("\n**Capital Allocation:**")
         total = 0.0
         for alloc in allocations:
+            rationale = self._truncate(alloc.rationale, 90)
             lines.append(
-                f"• {alloc.ticker}: `${alloc.amount_usd:,.0f}` ({alloc.percentage:.1f}%)\n"
-                f"  {alloc.rationale or ''}"
+                f"• {alloc.ticker}: `${alloc.amount_usd:,.0f}` ({alloc.percentage:.1f}%) — {rationale}"
             )
             total += alloc.amount_usd
         lines.append(f"\nTotal deployed: `${total:,.0f}`")

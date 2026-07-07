@@ -50,16 +50,17 @@ class ShortlistService:
 
     async def _call_llm_reasoning(self, stock: Stock, macro_aggregate: float) -> str:
         prompt = (
-            f"Provide a 2-3 sentence investment reasoning for {stock.ticker} ({stock.company_name}).\n"
+            f"Provide investment reasoning for {stock.ticker} ({stock.company_name}) "
+            "as ONE short clause, under 15 words, no trailing period needed.\n"
             f"Barbell class: {stock.barbell_class.value}. Risk-reward score: {stock.risk_reward_score:.2f}.\n"
             f"Key metrics: P/E={stock.pe_ratio}, beta={stock.beta}, RSI={stock.rsi_14}, "
             f"momentum_90d={stock.momentum_90d}%, macro_sentiment={macro_aggregate:.2f}.\n"
-            "Be concise and specific. No disclaimers."
+            "Be concise and specific. No disclaimers, no filler like 'presents an opportunity'."
         )
         response = await asyncio.to_thread(
             self._client.chat.completions.create,
             model=self._model,
-            max_tokens=256,
+            max_tokens=60,
             messages=[{"role": "user", "content": prompt}],
         )
         return response.choices[0].message.content.strip()

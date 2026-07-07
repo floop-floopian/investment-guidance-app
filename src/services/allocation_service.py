@@ -26,13 +26,14 @@ class AllocationService:
         )
         prompt = (
             f"Capital: ${capital:.0f}. Allocation:\n{alloc_summary}\n\n"
-            "Write a 2-sentence rationale for EACH position and a 2-sentence overall portfolio rationale.\n"
+            "Write ONE short clause (under 12 words) rationale for EACH position and "
+            "ONE short clause (under 15 words) overall portfolio rationale. No filler.\n"
             'Return JSON: {"positions": {"TICKER": "rationale"}, "overall": "rationale"}'
         )
         response = await asyncio.to_thread(
             self._client.chat.completions.create,
             model=self._model,
-            max_tokens=1024,
+            max_tokens=400,
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
         )
