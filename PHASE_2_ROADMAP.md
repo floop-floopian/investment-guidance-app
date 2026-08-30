@@ -102,7 +102,23 @@ This is an engineering requirement for Phase 2C, not a legal footnote:
 
 ---
 
-## Phase 2D — Premium Data Sources (contingent, not committed)
+## Phase 2D — Additional Notification Channel: Slack
+
+**Problem**: Discord is the only delivery channel. Some users (especially in professional/PM contexts) live in Slack, not Discord, and won't install a second chat app for alerts.
+
+**Scope**:
+- `SlackAdapter` implementing the existing `NotificationProvider` interface (Constitution Principle II) — same contract as `DiscordAdapter`, no changes to `AllocationService`/pipeline code that calls it.
+- Delivery via Slack Incoming Webhooks or `chat.postMessage` (free, no paid tier — unlike WhatsApp Business API, which requires Meta Business verification and caps free business-initiated messages).
+- Per-user channel preference stored on the `users` table added in 2A (`notification_channel: discord | slack`, `slack_user_id` nullable) — depends on 2A shipping first so this is a column addition, not a schema bolt-on.
+- Account linking via Slack OAuth (`chat:write` scope), mirroring the 2B Discord OAuth flow on the same FastAPI surface.
+
+**Why Slack over WhatsApp**: WhatsApp's only free path is unofficial libraries (Baileys/pywhatkit) that scrape a logged-in WhatsApp Web session — ToS violation risk, session fragility, not something to ship in a project meant to demonstrate engineering judgment. Slack's Bot API is free indefinitely with no template-approval friction.
+
+**Depends on**: 2A (needs `user_id` + a channel-preference column to route correctly), 2B pattern reused for Slack's own OAuth callback.
+
+---
+
+## Phase 2E — Premium Data Sources (contingent, not committed)
 
 Ordered by cost-to-value, cheapest first:
 
